@@ -119,4 +119,39 @@ export const userLogout = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "User Logged Out " });
 });
 
-export const getUser = asyncHandler(async (req, res) => {});
+export const getUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select("-password");
+  console.log(user);
+  if (user) {
+    res.status(200).json(user);
+  } else {
+    res.status(404).json({ message: "User Not Found" });
+  }
+});
+
+//update User
+export const updateUser = asyncHandler(async (req, res) => {
+  //get user detail from token
+
+  const user = await User.findById(req.user._id);
+
+  if (user) {
+    user.name = req.body.name || user.name;
+    user.bio = req.body.bio || user.bio;
+    user.photo = req.body.photo || user.photo;
+
+    const updated = await user.save();
+
+    res.status(200).json({
+      _id: updated._id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      photo: updated.photo,
+      bio: updated.bio,
+      isVarified: updated.isVerified,
+    });
+  } else {
+    res.status(404).json({ message: "User Not Found" });
+  }
+});
