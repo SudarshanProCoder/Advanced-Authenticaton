@@ -2,8 +2,12 @@ import asyncHandler from "express-async-handler";
 import User from "../../models/auth/userModel.js";
 import generateToken from "../../helpers/generateToken.js";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import Token from "../../models/auth/Token.js";
+import { hashToken } from "../../helpers/hashToken.js";
+import { sendEmail } from "../../helpers/sendEmail.js";
 //user Register Controller
-
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -153,5 +157,77 @@ export const updateUser = asyncHandler(async (req, res) => {
     });
   } else {
     res.status(404).json({ message: "User Not Found" });
+  }
+});
+
+// getUserLoginStatus
+
+export const getUserLoginStatus = asyncHandler(async (req, res) => {
+  const token = req.cookies.token;
+  if (!token) {
+    res.status(404).json({ message: "Not authorized, please login!" });
+  }
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+  if (decoded) {
+    res.status(200).json(true);
+  } else {
+    res.status(401).json(false);
+  }
+});
+
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return res.status(400).json({ message: "User Not Found" });
+  }
+
+  //check is user already verified
+
+  if (user.isVerified) {
+    res.status(400).jaon({ message: "User Already Verified!" });
+  }
+
+  let token = await Token.findOne({ userId: user._id });
+
+  if (token) {
+    await token.deleteOne();
+  }
+
+  //create verification token using crypto
+  const verificationToken = crypto.randomBytes(64).toString("hex") + user._id;
+  console.log(verificationToken);
+
+  //hash the verification token
+
+  const hashedToken = await hashToken(verificationToken);
+
+  await new Token({
+    userId: user._id,
+    verificationToken: hashedToken,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000, // this for 24hr expire
+  }).save();
+
+  //verification link
+  const verificationLink = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
+
+  //send email
+  const subject = "Email Verification - Auth";
+  const send_to = user.email;
+  const reply_to = "noreply@gmail.com";
+  const template = "emailVerification";
+  const send_from = process.env.CLIENT_EMAIL;
+  const name = user.name;
+  const url = verificationLink;
+
+  try {
+    await sendEmail(subject, send_to, send_from, reply_to, template, name, url);
+    res.status(200).json({ message: "Email sent " });
+  } catch (error) {
+    console.log(error);
+    res.status(400).json({ message: "Email Can not sent" });
   }
 });

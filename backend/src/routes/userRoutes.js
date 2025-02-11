@@ -5,6 +5,8 @@ import {
   userLogout,
   getUser,
   updateUser,
+  getUserLoginStatus,
+  verifyEmail,
 } from "../controllers/auth/userController.js";
 import {
   adminMiddleware,
@@ -28,6 +30,11 @@ router.delete("/admin/users/:id", protect, adminMiddleware, deleteUser);
 
 router.get("/admin/users", protect, creatorMiddleware, getAlluser);
 
-// 8169107362;
+//user login-status
+router.get("/login-status", getUserLoginStatus);
+
+// verify user --> email verification
+
+router.post("/verify-email", protect, verifyEmail);
 
 export default router;
