@@ -1,6 +1,6 @@
 import asyncHandler from "express-async-handler";
 import jwt from "jsonwebtoken";
-import User from "../models/auth/user.model.js";
+import User from "../models/auth/userModel.js";
 
 export const protect = asyncHandler(async (req, res, next) => {
   try {
@@ -22,4 +22,16 @@ export const protect = asyncHandler(async (req, res, next) => {
   } catch (error) {
     res.status(401).json({ message: "Not authorized,token failed" });
   }
+});
+
+//admin middlerware
+export const adminMiddleware = asyncHandler(async (req, res, next) => {
+  if (req.user && req.user.role === "admin") {
+    next();
+    return;
+  }
+
+  // if not admin, send 403 forbidden
+
+  res.status(403).json({ message: "Only admins can do this!" });
 });

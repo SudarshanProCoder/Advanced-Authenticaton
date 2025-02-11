@@ -1,5 +1,5 @@
 import asyncHandler from "express-async-handler";
-import User from "../../models/auth/user.model.js";
+import User from "../../models/auth/userModel.js";
 import generateToken from "../../helpers/generateToken.js";
 import bcrypt from "bcrypt";
 //user Register Controller
