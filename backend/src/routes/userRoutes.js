@@ -10,6 +10,7 @@ import {
   verifyUser,
   forgetPassword,
   resetPassword,
+  chnagePassword,
 } from "../controllers/auth/userController.js";
 import {
   adminMiddleware,
@@ -39,5 +40,6 @@ router.post("/verify-user/:verificationToken", verifyUser);
 router.post("/forget-password", forgetPassword);
 //reset password
 router.post("/reset-password/:resetPasswordToken", resetPassword);
-
+//change password
+router.patch("/change-password", protect, chnagePassword);
 export default router;
