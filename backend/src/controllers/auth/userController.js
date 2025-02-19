@@ -231,3 +231,113 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     res.status(400).json({ message: "Email Can not sent" });
   }
 });
+
+export const verifyUser = asyncHandler(async (req, res) => {
+  const { verificationToken } = req.params;
+
+  if (!verificationToken) {
+    return res.status(400).json({ message: "Invalid Verification Token" });
+  }
+
+  //hash the verication token
+  const hashedToken = hashToken(verificationToken);
+
+  //find the user with verification token
+
+  const userToken = await Token.findOne({
+    verificationToken: hashedToken,
+    expiresAt: { $gt: Date.now() },
+  });
+
+  if (!userToken) {
+    return res
+      .status(400)
+      .json({ message: "Invalid Or Expaire Verification Token" });
+  }
+
+  const user = await User.findById(userToken.userId);
+
+  if (user.isVerified) {
+    return res.status(400).json({ message: "User is already verified" });
+  }
+  user.isVerified = true;
+  await user.save();
+
+  res.status(200).json({ message: "User Verified" });
+});
+
+export const forgetPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    res.status(400).json({ message: "Email is required" });
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    res.status(404).json({ message: "User Not Found" });
+  }
+
+  let token = await Token.findOne({ userId: user._id });
+
+  if (token) {
+    await token.deleteOne();
+  }
+
+  const passwordResetToken = crypto.randomBytes(64).toString("hex") + user._id;
+
+  const hashedToken = hashToken(passwordResetToken);
+
+  await new Token({
+    userId: user._id,
+    passwordResetToken: hashedToken,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 60 * 60 * 1000,
+  }).save();
+
+  const resetLink = `${process.env.CLIENT_URL}/reset-password/${passwordResetToken}`;
+
+  const subject = "Password Reset - AuthKit";
+  const send_to = user.email;
+  const send_from = process.env.CLIENT_EMAIL;
+  const reply_to = "noreply@noreply.com";
+  const template = "forgetpassword";
+  const name = user.name;
+  const url = resetLink;
+
+  try {
+    await sendEmail(subject, send_to, send_from, reply_to, template, name, url);
+    res.status(200).json({ message: "Email Sent" });
+  } catch (error) {
+    return res.status(500).json({ message: "Email Could Not send" });
+  }
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { resetPasswordToken } = req.params;
+
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(404).json({ message: "Password is required" });
+  }
+
+  const hashedToken = hashToken(resetPasswordToken);
+
+  const userToken = await Token.findOne({
+    passwordResetToken: hashedToken,
+    expiresAt: { $gt: Date.now() },
+  });
+
+  if (!userToken) {
+    return res.status(400).json({ message: "Invalid or expired reset token" });
+  }
+
+  const user = await User.findById(userToken.userId);
+
+  user.password = password;
+  await user.save();
+
+  res.status(200).json({ message: "Password reset successfully" });
+});
